@@ -7,69 +7,81 @@ st.set_page_config(page_title="Stock Data Visualization", layout="wide")
 
 st.title("Stock Data Visualization App")
 
-# User input for stock symbol
-stock_symbol = st.text_input("Enter a stock symbol (e.g., AAPL, GOOGL):", "AAPL").upper()
+# User input for multiple stock symbols
+stock_symbols = st.text_input("Enter stock symbols separated by commas (e.g., AAPL, GOOGL, MSFT):", "AAPL, GOOGL").upper()
 
-if stock_symbol:
-    # Fetch stock data
-    df, info = fetch_stock_data(stock_symbol)
+if stock_symbols:
+    symbols = [symbol.strip() for symbol in stock_symbols.split(',')]
     
-    if df is not None and info is not None:
-        # Display company information
-        st.header(f"{info['longName']} ({stock_symbol})")
-        st.write(f"Sector: {info['sector']}")
-        st.write(f"Industry: {info['industry']}")
-        st.write(f"Website: {info['website']}")
-        
-        # Display key financial information
-        col1, col2, col3 = st.columns(3)
-        col1.metric("Current Price", f"${info['currentPrice']:.2f}")
-        col2.metric("Market Cap", f"${info['marketCap']:,.0f}")
-        col3.metric("Trailing P/E", f"{info['trailingPE']:.2f}")
-
-        col4, col5, col6 = st.columns(3)
-        col4.metric("Forward P/E", f"{info['forwardPE']:.2f}")
-        col5.metric("PEG Ratio", f"{info['pegRatio']:.2f}")
-        col6.metric("Price to Book", f"{info['priceToBook']:.2f}")
-        
-        # Display stock price chart
-        st.subheader("Stock Price History")
-        fig = go.Figure(data=go.Scatter(x=df.index, y=df['Close'], mode='lines'))
+    # Fetch stock data for all symbols
+    stock_data = {}
+    for symbol in symbols:
+        df, info = fetch_stock_data(symbol)
+        if df is not None and info is not None:
+            stock_data[symbol] = {'df': df, 'info': info}
+    
+    if stock_data:
+        # Display comparative stock price chart
+        st.subheader("Comparative Stock Price History")
+        fig = go.Figure()
+        for symbol, data in stock_data.items():
+            fig.add_trace(go.Scatter(x=data['df'].index, y=data['df']['Close'], mode='lines', name=symbol))
         fig.update_layout(xaxis_title="Date", yaxis_title="Close Price (USD)")
         st.plotly_chart(fig, use_container_width=True)
         
-        # Display financial data table
-        st.subheader("Financial Data")
-        financial_data = pd.DataFrame({
-            "Metric": ["Trailing P/E", "Forward P/E", "PEG Ratio", "Price to Book", "Enterprise to Revenue", "Enterprise to EBITDA"],
-            "Value": [
-                info['trailingPE'],
-                info['forwardPE'],
-                info['pegRatio'],
-                info['priceToBook'],
-                info['enterpriseToRevenue'],
-                info['enterpriseToEbitda']
-            ]
-        })
-        st.dataframe(financial_data)
+        # Display comparative financial data table
+        st.subheader("Comparative Financial Data")
+        comparative_data = []
+        for symbol, data in stock_data.items():
+            info = data['info']
+            comparative_data.append({
+                "Symbol": symbol,
+                "Current Price": f"${info['currentPrice']:.2f}",
+                "Market Cap": f"${info['marketCap']:,.0f}",
+                "Trailing P/E": f"{info['trailingPE']:.2f}",
+                "Forward P/E": f"{info['forwardPE']:.2f}",
+                "PEG Ratio": f"{info['pegRatio']:.2f}",
+                "Price to Book": f"{info['priceToBook']:.2f}"
+            })
+        comparative_df = pd.DataFrame(comparative_data)
+        st.dataframe(comparative_df)
         
-        # Display historical data table
-        st.subheader("Historical Data")
-        st.dataframe(df)
-        
-        # Download CSV button
-        csv = df.to_csv(index=True)
-        st.download_button(
-            label="Download data as CSV",
-            data=csv,
-            file_name=f"{stock_symbol}_stock_data.csv",
-            mime="text/csv",
-        )
+        # Individual stock details
+        for symbol, data in stock_data.items():
+            with st.expander(f"Detailed Information for {symbol}"):
+                info = data['info']
+                st.subheader(f"{info['longName']} ({symbol})")
+                st.write(f"Sector: {info['sector']}")
+                st.write(f"Industry: {info['industry']}")
+                st.write(f"Website: {info['website']}")
+                
+                col1, col2, col3 = st.columns(3)
+                col1.metric("Current Price", f"${info['currentPrice']:.2f}")
+                col2.metric("Market Cap", f"${info['marketCap']:,.0f}")
+                col3.metric("Trailing P/E", f"{info['trailingPE']:.2f}")
+                
+                # Display individual stock price chart
+                st.subheader("Stock Price History")
+                fig = go.Figure(data=go.Scatter(x=data['df'].index, y=data['df']['Close'], mode='lines'))
+                fig.update_layout(xaxis_title="Date", yaxis_title="Close Price (USD)")
+                st.plotly_chart(fig, use_container_width=True)
+                
+                # Display historical data table
+                st.subheader("Historical Data")
+                st.dataframe(data['df'])
+                
+                # Download CSV button
+                csv = data['df'].to_csv(index=True)
+                st.download_button(
+                    label=f"Download {symbol} data as CSV",
+                    data=csv,
+                    file_name=f"{symbol}_stock_data.csv",
+                    mime="text/csv",
+                )
     else:
-        st.error("Unable to fetch stock data. Please check the stock symbol and try again.")
-
+        st.error("Unable to fetch stock data. Please check the stock symbols and try again.")
 else:
-    st.info("Please enter a stock symbol to view its data.")
+    st.info("Please enter stock symbols separated by commas to view and compare their data.")
 
 # Add footer
 st.markdown("---")
