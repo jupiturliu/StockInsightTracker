@@ -60,11 +60,24 @@ if stock_symbols:
                 col2.metric("Market Cap", f"${info['marketCap']:,.0f}")
                 col3.metric("Trailing P/E", f"{info['trailingPE']:.2f}")
                 
-                # Display individual stock price chart
-                st.subheader("Stock Price History")
-                fig = go.Figure(data=go.Scatter(x=data['df'].index, y=data['df']['Close'], mode='lines'))
-                fig.update_layout(xaxis_title="Date", yaxis_title="Close Price (USD)")
+                # Display individual stock price chart with technical indicators
+                st.subheader("Stock Price History with Technical Indicators")
+                fig = go.Figure()
+                fig.add_trace(go.Scatter(x=data['df'].index, y=data['df']['Close'], mode='lines', name='Close Price'))
+                fig.add_trace(go.Scatter(x=data['df'].index, y=data['df']['SMA20'], mode='lines', name='SMA 20', line=dict(dash='dash')))
+                fig.add_trace(go.Scatter(x=data['df'].index, y=data['df']['SMA50'], mode='lines', name='SMA 50', line=dict(dash='dash')))
+                fig.add_trace(go.Scatter(x=data['df'].index, y=data['df']['SMA200'], mode='lines', name='SMA 200', line=dict(dash='dash')))
+                fig.update_layout(xaxis_title="Date", yaxis_title="Price (USD)")
                 st.plotly_chart(fig, use_container_width=True)
+                
+                # Display RSI chart
+                st.subheader("Relative Strength Index (RSI)")
+                fig_rsi = go.Figure()
+                fig_rsi.add_trace(go.Scatter(x=data['df'].index, y=data['df']['RSI'], mode='lines', name='RSI'))
+                fig_rsi.add_hline(y=70, line_dash="dash", line_color="red", annotation_text="Overbought (70)")
+                fig_rsi.add_hline(y=30, line_dash="dash", line_color="green", annotation_text="Oversold (30)")
+                fig_rsi.update_layout(xaxis_title="Date", yaxis_title="RSI")
+                st.plotly_chart(fig_rsi, use_container_width=True)
                 
                 # Display historical data table
                 st.subheader("Historical Data")

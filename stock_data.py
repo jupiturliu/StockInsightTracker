@@ -1,5 +1,6 @@
 import yfinance as yf
 import pandas as pd
+import numpy as np
 
 def fetch_stock_data(symbol: str, period: str = "1y") -> tuple:
     """
@@ -22,6 +23,9 @@ def fetch_stock_data(symbol: str, period: str = "1y") -> tuple:
         # Round float columns to 2 decimal places
         float_columns = df.select_dtypes(include=['float64']).columns
         df[float_columns] = df[float_columns].round(2)
+        
+        # Calculate technical indicators
+        df = calculate_technical_indicators(df)
         
         info = get_company_info(stock)
         return df, info
@@ -55,3 +59,27 @@ def get_company_info(stock: yf.Ticker) -> dict:
         'enterpriseToRevenue': info.get('enterpriseToRevenue', 'N/A'),
         'enterpriseToEbitda': info.get('enterpriseToEbitda', 'N/A'),
     }
+
+def calculate_technical_indicators(df: pd.DataFrame) -> pd.DataFrame:
+    """
+    Calculate technical indicators for the given stock data.
+    
+    Args:
+    df (pd.DataFrame): DataFrame containing stock price data
+    
+    Returns:
+    pd.DataFrame: DataFrame with added technical indicators
+    """
+    # Calculate Simple Moving Averages (SMA)
+    df['SMA20'] = df['Close'].rolling(window=20).mean()
+    df['SMA50'] = df['Close'].rolling(window=50).mean()
+    df['SMA200'] = df['Close'].rolling(window=200).mean()
+    
+    # Calculate Relative Strength Index (RSI)
+    delta = df['Close'].diff()
+    gain = (delta.where(delta > 0, 0)).rolling(window=14).mean()
+    loss = (-delta.where(delta < 0, 0)).rolling(window=14).mean()
+    rs = gain / loss
+    df['RSI'] = 100 - (100 / (1 + rs))
+    
+    return df
