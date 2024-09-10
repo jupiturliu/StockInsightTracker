@@ -10,6 +10,22 @@ st.title("Stock Data Visualization App")
 # User input for multiple stock symbols
 stock_symbols = st.text_input("Enter stock symbols separated by commas (e.g., AAPL, GOOGL, MSFT):", "AAPL, GOOGL").upper()
 
+# Initialize session state for price alerts
+if 'price_alerts' not in st.session_state:
+    st.session_state.price_alerts = {}
+
+def set_price_alert(symbol, alert_type, price):
+    if symbol not in st.session_state.price_alerts:
+        st.session_state.price_alerts[symbol] = []
+    st.session_state.price_alerts[symbol].append({"type": alert_type, "price": price})
+
+def check_price_alerts(symbol, current_price):
+    if symbol in st.session_state.price_alerts:
+        for alert in st.session_state.price_alerts[symbol]:
+            if (alert["type"] == "above" and current_price > alert["price"]) or \
+               (alert["type"] == "below" and current_price < alert["price"]):
+                st.warning(f"Alert: {symbol} price is {alert['type']} ${alert['price']:.2f}")
+
 if stock_symbols:
     symbols = [symbol.strip() for symbol in stock_symbols.split(',')]
     
@@ -46,6 +62,27 @@ if stock_symbols:
         comparative_df = pd.DataFrame(comparative_data)
         st.dataframe(comparative_df)
         
+        # Price Alert Section
+        st.subheader("Set Price Alerts")
+        col1, col2, col3, col4 = st.columns(4)
+        with col1:
+            alert_symbol = st.selectbox("Select Stock", symbols)
+        with col2:
+            alert_type = st.selectbox("Alert Type", ["above", "below"])
+        with col3:
+            alert_price = st.number_input("Alert Price", min_value=0.01, step=0.01, value=stock_data[alert_symbol]['info']['currentPrice'])
+        with col4:
+            if st.button("Set Alert"):
+                set_price_alert(alert_symbol, alert_type, alert_price)
+                st.success(f"Alert set for {alert_symbol} when price goes {alert_type} ${alert_price:.2f}")
+        
+        # Display current alerts
+        if st.session_state.price_alerts:
+            st.subheader("Current Alerts")
+            for symbol, alerts in st.session_state.price_alerts.items():
+                for alert in alerts:
+                    st.write(f"{symbol}: Alert when price goes {alert['type']} ${alert['price']:.2f}")
+        
         # Individual stock details
         for symbol, data in stock_data.items():
             with st.expander(f"Detailed Information for {symbol}"):
@@ -59,6 +96,9 @@ if stock_symbols:
                 col1.metric("Current Price", f"${info['currentPrice']:.2f}")
                 col2.metric("Market Cap", f"${info['marketCap']:,.0f}")
                 col3.metric("Trailing P/E", f"{info['trailingPE']:.2f}")
+                
+                # Check for price alerts
+                check_price_alerts(symbol, info['currentPrice'])
                 
                 # Display individual stock price chart with technical indicators
                 st.subheader("Stock Price History with Technical Indicators")
