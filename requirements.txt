@@ -5,3 +5,4 @@ numpy==1.23.5
 plotly==5.14.1
 newsapi-python
 textblob
+newsapi
