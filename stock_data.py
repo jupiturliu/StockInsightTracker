@@ -1,7 +1,7 @@
 import yfinance as yf
 import pandas as pd
 import numpy as np
-from newsapi import NewsApiClient
+from newsapi.newsapi_client import NewsApiClient
 from textblob import TextBlob
 import os
 
