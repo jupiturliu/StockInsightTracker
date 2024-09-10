@@ -1,6 +1,12 @@
 import yfinance as yf
 import pandas as pd
 import numpy as np
+from newsapi import NewsApiClient
+from textblob import TextBlob
+import os
+
+# Initialize NewsApiClient with the API key
+newsapi = NewsApiClient(api_key=os.environ.get('NEWS_API_KEY'))
 
 def fetch_stock_data(symbol: str, period: str = "1y") -> tuple:
     """
@@ -11,14 +17,14 @@ def fetch_stock_data(symbol: str, period: str = "1y") -> tuple:
     period (str): Time period for historical data (default: '1y')
     
     Returns:
-    tuple: (DataFrame with stock data, dict with company info)
+    tuple: (DataFrame with stock data, dict with company info, list of news articles with sentiment)
     """
     try:
         stock = yf.Ticker(symbol)
         df = stock.history(period=period)
         
         if df.empty:
-            return None, None
+            return None, None, None
         
         # Round float columns to 2 decimal places
         float_columns = df.select_dtypes(include=['float64']).columns
@@ -28,11 +34,12 @@ def fetch_stock_data(symbol: str, period: str = "1y") -> tuple:
         df = calculate_technical_indicators(df)
         
         info = get_company_info(stock)
-        return df, info
+        news = fetch_news(symbol)
+        return df, info, news
     
     except Exception as e:
         print(f"Error fetching data for {symbol}: {str(e)}")
-        return None, None
+        return None, None, None
 
 def get_company_info(stock: yf.Ticker) -> dict:
     """
@@ -83,3 +90,38 @@ def calculate_technical_indicators(df: pd.DataFrame) -> pd.DataFrame:
     df['RSI'] = 100 - (100 / (1 + rs))
     
     return df
+
+def fetch_news(symbol: str, days: int = 7) -> list:
+    """
+    Fetch news articles related to the stock symbol and perform sentiment analysis.
+    
+    Args:
+    symbol (str): Stock symbol
+    days (int): Number of days to look back for news articles
+    
+    Returns:
+    list: List of dictionaries containing news articles and their sentiment scores
+    """
+    try:
+        articles = newsapi.get_everything(q=symbol,
+                                          language='en',
+                                          sort_by='publishedAt',
+                                          from_param=(pd.Timestamp.now() - pd.Timedelta(days=days)).strftime('%Y-%m-%d'))
+        
+        news_list = []
+        for article in articles['articles'][:5]:  # Limit to top 5 articles
+            sentiment = TextBlob(article['title'] + ' ' + article['description']).sentiment.polarity
+            news_list.append({
+                'title': article['title'],
+                'description': article['description'],
+                'url': article['url'],
+                'publishedAt': article['publishedAt'],
+                'sentiment': sentiment
+            })
+        
+        return news_list
+    
+    except Exception as e:
+        print(f"Error fetching news for {symbol}: {str(e)}")
+        return []
+

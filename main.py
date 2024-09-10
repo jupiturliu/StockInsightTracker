@@ -16,9 +16,9 @@ if stock_symbols:
     # Fetch stock data for all symbols
     stock_data = {}
     for symbol in symbols:
-        df, info = fetch_stock_data(symbol)
+        df, info, news = fetch_stock_data(symbol)
         if df is not None and info is not None:
-            stock_data[symbol] = {'df': df, 'info': info}
+            stock_data[symbol] = {'df': df, 'info': info, 'news': news}
     
     if stock_data:
         # Display comparative stock price chart
@@ -79,6 +79,24 @@ if stock_symbols:
                 fig_rsi.update_layout(xaxis_title="Date", yaxis_title="RSI")
                 st.plotly_chart(fig_rsi, use_container_width=True)
                 
+                # Display news sentiment analysis
+                st.subheader("Recent News Sentiment Analysis")
+                if data['news']:
+                    news_df = pd.DataFrame(data['news'])
+                    news_df['sentiment'] = news_df['sentiment'].apply(lambda x: 'Positive' if x > 0 else ('Negative' if x < 0 else 'Neutral'))
+                    news_df['publishedAt'] = pd.to_datetime(news_df['publishedAt'])
+                    news_df = news_df.sort_values('publishedAt', ascending=False)
+                    
+                    for _, article in news_df.iterrows():
+                        st.markdown(f"**{article['title']}**")
+                        st.write(f"Published at: {article['publishedAt']}")
+                        st.write(f"Sentiment: {article['sentiment']}")
+                        st.write(article['description'])
+                        st.write(f"[Read more]({article['url']})")
+                        st.write("---")
+                else:
+                    st.write("No recent news articles found.")
+                
                 # Display historical data table
                 st.subheader("Historical Data")
                 st.dataframe(data['df'])
@@ -98,4 +116,4 @@ else:
 
 # Add footer
 st.markdown("---")
-st.markdown("Data provided by Yahoo Finance")
+st.markdown("Data provided by Yahoo Finance and NewsAPI")
